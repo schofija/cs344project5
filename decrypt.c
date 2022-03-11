@@ -33,6 +33,7 @@
 	#define BAD_KEY 'k'
 #endif
 
+int sendall(int, char*, int);
 char* getfile(int, int); //socketFD, buffer, len
 void decrypt(char*, char*); /* 	usage: text, plaintext, 
 								decrypted string written to plaintext */
@@ -54,7 +55,9 @@ int main(int argc, char* argv[])
 	{
 		char plaintext[FILE_SIZE] = {0}; /* empty string encrypt() will write ciphertext to */
 		decrypt(text, plaintext);;
-		int charsRead = send(connectionSocket, plaintext, strlen(plaintext), 0); /* send ciphertext to client */
+				strcat(plaintext, "!");
+			
+		int charsRead = sendall(connectionSocket, plaintext, strlen(plaintext)); /* send ciphertext to client */
 		if (charsRead < 0)
 		{
 			perror("Error writing to socket.\n");
@@ -76,6 +79,37 @@ int main(int argc, char* argv[])
 return EXIT_SUCCESS;
 }
 
+/*
+	Function to handle partial sends.
+	
+	This function was heavily inspired by:
+	http://beej.us/guide/bgnet/html/#sendall
+*/
+int sendall(int socketFD, char* buffer, int len)
+{
+	int sent = 0;
+	int bytesleft = len;
+	int n;
+	
+	while(sent < len)
+	{
+		if( (n = send(socketFD, buffer + sent, bytesleft, 0)) == -1 )
+		{
+			perror("ERROR sending file!\n");
+			exit(1);
+		}
+		sent += n;
+		bytesleft -= n;
+	}
+	
+	len = sent; // return number actually sent here
+	
+	return n==-1?-1:0; // return -1 on failure, 0 on success
+}
+
+/*
+Function to receive very long sends
+*/
 char* getfile(int connectionSocket, int len)
 {
 	char buffer[FILE_SIZE] = {0};
@@ -84,15 +118,15 @@ char* getfile(int connectionSocket, int len)
 	
 	int charsRead;
 	
-	while(strchr(buffer, '!') == NULL)
+	while(strchr(buffer, '!') == NULL) /* Loop until "!" (our end-of-file key) is found*/
 	{
-		if (charsRead = recv(connectionSocket, tmpbuffer, len, 0) == -1 )
+		if (charsRead = recv(connectionSocket, tmpbuffer, len, 0) == -1 ) /* receive data */
 		{
 			perror("ERROR reading from socket\n");
 			exit(1);
 		}
-		strcat(buffer, tmpbuffer);
-		memset(tmpbuffer, '\0', FILE_SIZE);
+		strcat(buffer, tmpbuffer); /* Add data to our already-received buffer */
+		memset(tmpbuffer, '\0', FILE_SIZE); /* reset tmpbuffer*/
 	}
 	strcpy(file_contents, buffer);
 	//printf("%s", file_contents);
@@ -100,12 +134,13 @@ char* getfile(int connectionSocket, int len)
 	return file_contents;
 }
 
+/* decrypts */
 void decrypt(char* text, char* decryptedtext)
 {
 	char *saveptr = NULL;
 	char *id = strtok_r(text, "\n", &saveptr); /* "d" */
-	char *plaintext = strtok_r(NULL, "\n", &saveptr);
-	char *key = strtok_r(NULL, "\n", &saveptr);
+	char *plaintext = strtok_r(NULL, "\n", &saveptr); /* ciphertext */
+	char *key = strtok_r(NULL, "\n", &saveptr); /* key */
 	
 	if(strlen(key) < strlen(plaintext))
 	{

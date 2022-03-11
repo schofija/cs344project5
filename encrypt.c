@@ -33,31 +33,13 @@
 	#define BAD_KEY 'k'
 #endif
 
+int sendall(int, char*, int);
 char* getfile(int, int); //socketFD, buffer, len
 void encrypt(char*, char*); /* 	usage: text, ciphertext, 
 								encrypted string written to ciphertext */
-								
-int sendall(int socketFD, char* buffer, int len)
-{
-	int sent = 0;
-	int bytesleft = len;
-	int n;
-	
-	while(sent < len)
-	{
-		if( (n = send(socketFD, buffer + sent, bytesleft, 0)) == -1 )
-		{
-			perror("ERROR sending file!\n");
-			exit(1);
-		}
-		sent += n;
-		bytesleft -= n;
-	}
-	
-	len = sent; // return number actually sent here
-	
-	return n==-1?-1:0; // return -1 on failure, 0 on success
-}
+
+						
+
 								
 int main(int argc, char* argv[])
 {
@@ -102,6 +84,37 @@ int main(int argc, char* argv[])
 return EXIT_SUCCESS;
 }
 
+/*
+	Function to handle partial sends.
+	
+	This function was heavily inspired by:
+	http://beej.us/guide/bgnet/html/#sendall
+*/
+int sendall(int socketFD, char* buffer, int len)
+{
+	int sent = 0;
+	int bytesleft = len;
+	int n;
+	
+	while(sent < len)
+	{
+		if( (n = send(socketFD, buffer + sent, bytesleft, 0)) == -1 )
+		{
+			perror("ERROR sending file!\n");
+			exit(1);
+		}
+		sent += n;
+		bytesleft -= n;
+	}
+	
+	len = sent; // return number actually sent here
+	
+	return n==-1?-1:0; // return -1 on failure, 0 on success
+}
+
+/*
+Function to accept very long sends
+*/
 char* getfile(int connectionSocket, int len)
 {
 	char buffer[FILE_SIZE] = {0};
@@ -110,15 +123,15 @@ char* getfile(int connectionSocket, int len)
 	
 	int charsRead;
 	
-	while(strchr(buffer, '!') == NULL)
+	while(strchr(buffer, '!') == NULL) /* Loop until "!" (our end-of-file key) is found*/
 	{
-		if (charsRead = recv(connectionSocket, tmpbuffer, len, 0) == -1 )
+		if (charsRead = recv(connectionSocket, tmpbuffer, len, 0) == -1 ) /* get data*/
 		{
 			perror("ERROR reading from socket\n");
 			exit(1);
 		}
-		strcat(buffer, tmpbuffer);
-		memset(tmpbuffer, '\0', FILE_SIZE);
+		strcat(buffer, tmpbuffer); /* Add data to our already-received buffer */
+		memset(tmpbuffer, '\0', FILE_SIZE); /* reset tmpbuffer*/
 	}
 	strcpy(file_contents, buffer);
 	//printf("%s", file_contents);
@@ -126,6 +139,7 @@ char* getfile(int connectionSocket, int len)
 	return file_contents;
 }
 
+/* Encrypt function. Encrypts based assignment specifications (modulo 27 OTP) */
 void encrypt(char* text, char* ciphertext)
 {
 	char *saveptr = NULL;

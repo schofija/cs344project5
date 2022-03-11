@@ -22,7 +22,7 @@ void gen_key(int keylen)
 {
 	char written[keylen]; /* track already-used characters */
 	
-	char k[1];
+	char k[1]; /* stores single key char */
 	
 	for(int i = 0; i < keylen; i++)
 	{
@@ -32,7 +32,7 @@ void gen_key(int keylen)
 		else 			/* Otherwise, shift k_int to appropriate ASCII (65-90) */
 			k[0] = k_int + 64;
 		
-		write(STDOUT_FILENO, k, 1);
+		write(STDOUT_FILENO, k, 1); /* write key to stdout */
 	}
-	write(STDOUT_FILENO, "\n", 1);
+	write(STDOUT_FILENO, "\n", 1); /* add nul-terminator */
 }

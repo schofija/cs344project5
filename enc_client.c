@@ -100,13 +100,13 @@ int main(int argc, char *argv[])
 	if (charsRead < 0)
 		error("CLIENT: ERROR reading from socket");
 
-	if(strcmp(buffer, BAD_SERVER_MESSAGE) == 0)
+	if(strcmp(buffer, BAD_SERVER_MESSAGE) == 0) /* Check to see if server rejected connection */
 	{
-		fprintf(stderr, "%s", "Server rejection!\n");
+		fprintf(stderr, "%s", "enc_client cannot use this server!\n");
 		close(socketFD);
 		exit(2);
 	}
-	else
+	else /* Print normally otherwise! */
 	{
 		buffer[strlen(buffer) - 1] = '\0'; /* trimming eof-notifier (!) off msg...*/
 		printf("%s", buffer);

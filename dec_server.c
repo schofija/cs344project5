@@ -77,20 +77,6 @@ int main(int argc, char *argv[])
 	  return 0;
 }
 
-char* getfile(int connectionSocket, char buffer[], int len)
-{
-	char* file_contents = malloc(sizeof buffer);
-	int charsRead;
-	
-	if (charsRead = recv(connectionSocket, buffer, len, 0) == -1 )
-		error("ERROR reading from socket\n");
-	
-	strcpy(file_contents, buffer);
-	
-	memset(buffer, '\0', FILE_SIZE);
-	return file_contents;
-}
-
 // Error function used for reporting issues
 void error(const char *msg) {
   perror(msg);
