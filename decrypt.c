@@ -116,15 +116,20 @@ void decrypt(char* text, char* decryptedtext)
 			else				/* Setting A-Z to 0-25 */
 				keyval = key[i] - 65;
 			
-			int plaintextval = plaintext[i] - 65;
+			int plaintextval;
+			
+
+			plaintextval = plaintext[i] - 65;
+			if(plaintextval == -33)
+				plaintextval = 26;
 				
 			int cipher = plaintextval - keyval;
 			if(cipher < 0)
 				cipher += 27;
 			cipher %= 27;
-			//printf("encr_char: %i, key: %i, cipher: %i\n", plaintextval, keyval, cipher);
 			
 			/* Convert back to ascii code */
+			//printf("plaintextval: %i (plaintext==%c), keyval: %i, cipher[%i]: %i\n", plaintextval, plaintext[i], keyval, i, cipher);
 			if(cipher == 26)
 				cipher = 32;
 			else

@@ -18,7 +18,19 @@
 #include <netinet/in.h>
 
 #ifndef FILE_SIZE /* max buffer length */
-	#define FILE_SIZE 4096
+	#define FILE_SIZE 200002
+#endif
+
+#ifndef ENC_VALIDATION /* validates connection is coming from enc_client */
+	#define ENC_VALIDATION "e"
+#endif
+
+#ifndef BAD_CLIENT_MESSAGE
+	#define BAD_CLIENT_MESSAGE "x"
+#endif
+
+#ifndef BAD_KEY
+	#define BAD_KEY 'k'
 #endif
 
 char* getfile(int, int); //socketFD, buffer, len
@@ -39,15 +51,26 @@ int main(int argc, char* argv[])
 	char *text = getfile(connectionSocket, FILE_SIZE - 1); /* text contains:
 																plaintext\n
 																key\n 		*/
-																
-	char ciphertext[FILE_SIZE] = {0}; /* empty string encrypt() will write ciphertext to */
-	encrypt(text, ciphertext);
-		
-	int charsRead = send(connectionSocket, ciphertext, strlen(ciphertext), 0); /* send ciphertext to client */
-	if (charsRead < 0)
+	if(text[0] == 'e')
 	{
-		perror("Error writing to socket.\n");
-		exit(1);
+		char ciphertext[FILE_SIZE] = {0}; /* empty string encrypt() will write ciphertext to */
+		encrypt(text, ciphertext);
+			
+		int charsRead = send(connectionSocket, ciphertext, strlen(ciphertext), 0); /* send ciphertext to client */
+		if (charsRead < 0)
+		{
+			perror("Error writing to socket.\n");
+			exit(1);
+		}
+	}
+	else
+	{
+		int charsRead = send(connectionSocket, "x", 1, 0); /* send BAD_CLIENT_MESSAGE to client. */
+		if (charsRead < 0)
+		{
+			perror("Error writing to socket.\n");
+			exit(1);
+		}
 	}
 
 	close(connectionSocket); /* Close socket */
@@ -76,33 +99,44 @@ char* getfile(int connectionSocket, int len)
 void encrypt(char* text, char* ciphertext)
 {
 	char *saveptr = NULL;
-	char *plaintext = strtok_r(text, "\n", &saveptr);
+	char *id = strtok_r(text, "\n", &saveptr); /* "e" */
+	char *plaintext = strtok_r(NULL, "\n", &saveptr);
 	char *key = strtok_r(NULL, "\n", &saveptr);
 	
-	for(int i = 0; i < strlen(plaintext); i++)
-	{	
-		char keyval; /* 	keyval is used to assign each letter to a numerical value
-						e.g., 'A' is 0, 'B' is 1....
-						' ' (32) is set to 26 */
-						
-		if(key[i] == 32) 	/* Setting space to 26 */
-			keyval = 26;
-		else				/* Setting A-Z to 0-25 */
-			keyval = key[i] - 65;
-		
-		char plaintextval; /* same scheme keyval uses*/
+	if(strlen(key) < strlen(plaintext))
+	{
+		ciphertext[0] = BAD_KEY;
+	}
+	
+	else
+	{
+		for(int i = 0; i < strlen(plaintext); i++)
+		{	
+			char keyval; /* keyval is used to assign each letter to a numerical value
+							e.g., 'A' is 0, 'B' is 1....
+							' ' (32) is set to 26 */
+								
+			if(key[i] == 32) 	/* Setting space to 26 */
+				keyval = 26;
+			else				/* Setting A-Z to 0-25 */
+				keyval = key[i] - 65;
+				
+			char plaintextval; /* same scheme keyval uses*/
 
-		if(plaintext[i] == 32)	/* Setting space to 26 */
-			plaintextval = 26;
-		else					/* Setting A-Z to 0-25 */
-			plaintextval = plaintext[i] - 65;
+			if(plaintext[i] == 32)	/* Setting space to 26 */
+				plaintextval = 26;
+			else					/* Setting A-Z to 0-25 */
+				plaintextval = plaintext[i] - 65;
+				
+			char cipher = (plaintextval + keyval) % 27;
+
+			cipher += 65;
+			if(cipher == 91)
+				cipher = 32;
 			
-		char cipher = (plaintextval + keyval) % 27;
-
-		cipher += 65;
-		
-		ciphertext[i] = cipher;
-		ciphertext[i + 1] = '\n';
+			ciphertext[i] = cipher;
+			ciphertext[i + 1] = '\n'; /* Appends a newline to the end of the encrypted message.*/
+		}
 	}
 }
 

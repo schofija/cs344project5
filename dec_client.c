@@ -1,8 +1,8 @@
 /*
 	dec_client.c
-	arguments: $ enc_client plaintext key port
+	arguments: $ enc_client ciphertext key port
 	
-	plaintext and key are sent to enc_server@port
+	ciphertext and key are sent to enc_server@port
 */
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,7 +17,15 @@
 #endif
 
 #ifndef FILE_SIZE /* max buffer length */
-	#define FILE_SIZE 2048
+	#define FILE_SIZE 100000
+#endif
+
+#ifndef DEC_TOKEN /* used to notify server it is speaking to dec_client */
+	#define DEC_TOKEN "d\n"
+#endif
+
+#ifndef BAD_SERVER_MESSAGE /* used to notify client it has connected to the wrong server */
+	#define BAD_SERVER_MESSAGE "x"
 #endif
 
 void sendfile(int, FILE*, FILE*);
@@ -29,15 +37,15 @@ int main(int argc, char *argv[])
 {
 	if(argc < 4) /* Check arguments */
 	{
-		fprintf(stderr,"USAGE: %s plaintext key port\n", argv[0]); 
+		fprintf(stderr,"USAGE: %s ciphertext key port\n", argv[0]); 
 		exit(0); 
 	}
 
-	/* Open plaintext file in read-only mode */
-	FILE* plaintext;
-	char* plaintext_filename = argv[1];
-	if( (plaintext = fopen(plaintext_filename, "r")) == NULL )
-		error("CLIENT: Error opening plaintext file\n");
+	/* Open ciphertext file in read-only mode */
+	FILE* ciphertext;
+	char* ciphertext_filename = argv[1];
+	if( (ciphertext = fopen(ciphertext_filename, "r")) == NULL )
+		error("CLIENT: Error opening ciphertext file\n");
 	
 	/* Open key file in read-only mode */
 	FILE* key;
@@ -64,19 +72,26 @@ int main(int argc, char *argv[])
 	char buffer[FILE_SIZE] = {0};
 	int charsRead;
 	
-	sendfile(socketFD, plaintext, key); /* Sending plaintext and key to server */
+	sendfile(socketFD, ciphertext, key); /* Sending ciphertext and key to server */
 
 	memset(buffer, '\0', FILE_SIZE);
 	charsRead = recv(socketFD, buffer, sizeof(buffer) - 1, 0); 
 	if (charsRead < 0)
 		error("CLIENT: ERROR reading from socket");
-	//printf("CLIENT: I received this from the server: \"%s\"\n", buffer);
-	//write(STDOUT_FILENO, buffer, strlen(buffer));
-	printf("%s", buffer);
 	
-	// Close the socket
-	close(socketFD); 
-	return 0;
+	if(strcmp(buffer, BAD_SERVER_MESSAGE) == 0)
+	{
+		fprintf(stderr, "%s", "Server rejection!\n");
+		close(socketFD);
+		exit(2);
+	}
+	else
+	{
+		printf("%s", buffer);
+		close(socketFD); 
+		return 0;
+	}
+return 0;
 }
 
 /* 
@@ -89,15 +104,22 @@ int main(int argc, char *argv[])
 */
 void sendfile(int socketFD, FILE* plaintext, FILE* key)
 {
-	char buffer1[FILE_SIZE * 2];
+	char message[(FILE_SIZE * 2) + 1] = {0};
+	
+	char buffer1[FILE_SIZE];
 	fgets(buffer1, FILE_SIZE, plaintext);
+	
 	char buffer2[FILE_SIZE];
 	fgets(buffer2, FILE_SIZE, key);
 	
-	strcat(buffer1, "\n");
-	strcat(buffer1, buffer2);
+	if(strlen(buffer1) > strlen(buffer2))
+		error("key is too short\n");
+	
+	strcat(message, DEC_TOKEN); /* "d\n" */
+	strcat(message, buffer1);	/* "[plaintext]\n" */
+	strcat(message, buffer2);	/* "key]\n" */
 
-	if(sendall(socketFD, buffer1, strlen(buffer1)) == -1) /* Sending data */
+	if(sendall(socketFD, message, strlen(message)) == -1) /* Sending data */
 		error("CLIENT: sendall() failed!\n");
 }
 

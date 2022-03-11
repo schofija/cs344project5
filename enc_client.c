@@ -17,13 +17,42 @@
 #endif
 
 #ifndef FILE_SIZE /* max buffer length */
-	#define FILE_SIZE 2048
+	#define FILE_SIZE 100000
+#endif
+
+#ifndef ENC_TOKEN /* used to notify a server that it is speaking to enc_client */
+	#define ENC_TOKEN "e\n"
+#endif
+
+#ifndef BAD_SERVER_MESSAGE /* used to notify client it has connected to the wrong server */
+	#define BAD_SERVER_MESSAGE "x"
 #endif
 
 void sendfile(int, FILE*, FILE*);
 int sendall(int, char*, int);
 void error(const char*);
 void setupAddressStruct(struct sockaddr_in*, int, char*);
+
+/* Validates contents of a text file 
+ * If text file contains characters not in the A-Z, ' ' scope,
+ * An error message is printed and the program exits
+ * */
+void validatetext(char* text)
+{
+	unsigned int i = 0;
+	while(text[i] != '\n')
+	{
+		if(text[i] < 65 || text[i] > 90)
+		{
+			if(text[i] != 32)
+			{
+				fprintf(stderr, "Invalid text file\n");
+				exit(1);
+			}
+		}
+		i++;
+	}
+}
 
 int main(int argc, char *argv[]) 
 {
@@ -70,13 +99,20 @@ int main(int argc, char *argv[])
 	charsRead = recv(socketFD, buffer, sizeof(buffer) - 1, 0); 
 	if (charsRead < 0)
 		error("CLIENT: ERROR reading from socket");
-	//printf("CLIENT: I received this from the server: \"%s\"\n", buffer);
-	//write(STDOUT_FILENO, buffer, strlen(buffer));
-	printf("%s", buffer);
-	
-	// Close the socket
-	close(socketFD); 
-	return 0;
+
+	if(strcmp(buffer, BAD_SERVER_MESSAGE) == 0)
+	{
+		fprintf(stderr, "%s", "Server rejection!\n");
+		close(socketFD);
+		exit(2);
+	}
+	else
+	{
+		printf("%s", buffer);
+		close(socketFD); 
+		return 0;
+	}
+return 0;
 }
 
 /* 
@@ -89,14 +125,27 @@ int main(int argc, char *argv[])
 */
 void sendfile(int socketFD, FILE* plaintext, FILE* key)
 {
-	char buffer1[FILE_SIZE * 2];
+	char message[(FILE_SIZE * 2) + 1] = {0};
+	
+	char buffer1[FILE_SIZE];
 	fgets(buffer1, FILE_SIZE, plaintext);
+
+	validatetext(buffer1); /*Make sure plaintext has no bad-chars*/
+	
 	char buffer2[FILE_SIZE];
 	fgets(buffer2, FILE_SIZE, key);
 	
-	strcat(buffer1, buffer2);
+	if(strlen(buffer1) > strlen(buffer2))
+	{
+		fprintf(stderr, "Key is too short!\n");
+		exit(1);
+	}
+	
+	strcat(message, ENC_TOKEN); /* "e\n" */
+	strcat(message, buffer1);	/* "[plaintext]\n" */
+	strcat(message, buffer2);	/* "key]\n" */
 
-	if(sendall(socketFD, buffer1, strlen(buffer1)) == -1) /* Sending data */
+	if(sendall(socketFD, message, strlen(message)) == -1) /* Sending data */
 		error("CLIENT: sendall() failed!\n");
 }
 

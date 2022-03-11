@@ -8,7 +8,7 @@
 #include <sys/wait.h> // for waitpid
 
 #ifndef FILE_SIZE /* max buffer length */
-	#define FILE_SIZE 4096
+	#define FILE_SIZE 200002
 #endif
 
 void error(const char*);
@@ -34,7 +34,6 @@ int main(int argc, char *argv[])
 
 	if (bind(listenSocket, (struct sockaddr *)&serverAddress, sizeof(serverAddress)) < 0) /* Associate the socket to the port */
 		error("ERROR on binding");
-
 
 	listen(listenSocket, 5); /* Listening for connections. Queue up to 5 */
   
@@ -68,13 +67,10 @@ int main(int argc, char *argv[])
 				exit(2);
 				break;
 			default: 	/* parent process */
-				spawnpid = waitpid(spawnpid, &childstatus, 0);
+				close(connectionSocket);
+				spawnpid = waitpid(spawnpid, &childstatus, WNOHANG);
 				break;
-		}
-		
-		
-
-		
+		}	
 	}
 	  // Close the listening socket
 	  close(listenSocket); 
