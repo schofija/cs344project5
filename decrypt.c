@@ -79,17 +79,23 @@ return EXIT_SUCCESS;
 char* getfile(int connectionSocket, int len)
 {
 	char buffer[FILE_SIZE] = {0};
+	char tmpbuffer[FILE_SIZE] = {0};
 	char* file_contents = malloc(sizeof buffer);
+	
 	int charsRead;
 	
-	if (charsRead = recv(connectionSocket, buffer, len, 0) == -1 )
+	while(strchr(buffer, '!') == NULL)
 	{
-		perror("ERROR reading from socket\n");
-		exit(1);
+		if (charsRead = recv(connectionSocket, tmpbuffer, len, 0) == -1 )
+		{
+			perror("ERROR reading from socket\n");
+			exit(1);
+		}
+		strcat(buffer, tmpbuffer);
+		memset(tmpbuffer, '\0', FILE_SIZE);
 	}
-	
 	strcpy(file_contents, buffer);
-	
+	//printf("%s", file_contents);
 	memset(buffer, '\0', FILE_SIZE);
 	return file_contents;
 }

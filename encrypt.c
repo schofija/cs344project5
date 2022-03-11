@@ -37,6 +37,28 @@ char* getfile(int, int); //socketFD, buffer, len
 void encrypt(char*, char*); /* 	usage: text, ciphertext, 
 								encrypted string written to ciphertext */
 								
+int sendall(int socketFD, char* buffer, int len)
+{
+	int sent = 0;
+	int bytesleft = len;
+	int n;
+	
+	while(sent < len)
+	{
+		if( (n = send(socketFD, buffer + sent, bytesleft, 0)) == -1 )
+		{
+			perror("ERROR sending file!\n");
+			exit(1);
+		}
+		sent += n;
+		bytesleft -= n;
+	}
+	
+	len = sent; // return number actually sent here
+	
+	return n==-1?-1:0; // return -1 on failure, 0 on success
+}
+								
 int main(int argc, char* argv[])
 {
 	
@@ -54,9 +76,11 @@ int main(int argc, char* argv[])
 	if(text[0] == 'e')
 	{
 		char ciphertext[FILE_SIZE] = {0}; /* empty string encrypt() will write ciphertext to */
+		
 		encrypt(text, ciphertext);
+		strcat(ciphertext, "!");
 			
-		int charsRead = send(connectionSocket, ciphertext, strlen(ciphertext), 0); /* send ciphertext to client */
+		int charsRead = sendall(connectionSocket, ciphertext, strlen(ciphertext)); /* send ciphertext to client */
 		if (charsRead < 0)
 		{
 			perror("Error writing to socket.\n");
@@ -81,17 +105,23 @@ return EXIT_SUCCESS;
 char* getfile(int connectionSocket, int len)
 {
 	char buffer[FILE_SIZE] = {0};
+	char tmpbuffer[FILE_SIZE] = {0};
 	char* file_contents = malloc(sizeof buffer);
+	
 	int charsRead;
 	
-	if (charsRead = recv(connectionSocket, buffer, len, 0) == -1 )
+	while(strchr(buffer, '!') == NULL)
 	{
-		perror("ERROR reading from socket\n");
-		exit(1);
+		if (charsRead = recv(connectionSocket, tmpbuffer, len, 0) == -1 )
+		{
+			perror("ERROR reading from socket\n");
+			exit(1);
+		}
+		strcat(buffer, tmpbuffer);
+		memset(tmpbuffer, '\0', FILE_SIZE);
 	}
-	
 	strcpy(file_contents, buffer);
-	
+	//printf("%s", file_contents);
 	memset(buffer, '\0', FILE_SIZE);
 	return file_contents;
 }

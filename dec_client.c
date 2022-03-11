@@ -118,6 +118,7 @@ void sendfile(int socketFD, FILE* plaintext, FILE* key)
 	strcat(message, DEC_TOKEN); /* "d\n" */
 	strcat(message, buffer1);	/* "[plaintext]\n" */
 	strcat(message, buffer2);	/* "key]\n" */
+	strcat(message, "!");
 
 	if(sendall(socketFD, message, strlen(message)) == -1) /* Sending data */
 		error("CLIENT: sendall() failed!\n");

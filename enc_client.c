@@ -108,6 +108,7 @@ int main(int argc, char *argv[])
 	}
 	else
 	{
+		buffer[strlen(buffer) - 1] = '\0'; /* trimming eof-notifier (!) off msg...*/
 		printf("%s", buffer);
 		close(socketFD); 
 		return 0;
@@ -144,6 +145,7 @@ void sendfile(int socketFD, FILE* plaintext, FILE* key)
 	strcat(message, ENC_TOKEN); /* "e\n" */
 	strcat(message, buffer1);	/* "[plaintext]\n" */
 	strcat(message, buffer2);	/* "key]\n" */
+	strcat(message, "!"); /* end-of-file notifier*/
 
 	if(sendall(socketFD, message, strlen(message)) == -1) /* Sending data */
 		error("CLIENT: sendall() failed!\n");
